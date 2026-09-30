@@ -1,28 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useOrdersStore } from '../stores/ordersStore'
 
-interface OrderItem {
-  id: number
-  title: string
-  price: number
-  image: string
-  quantity: number
-}
-
-interface Order {
-  id: number
-  date: string
-  items: OrderItem[]
-  total: number
-  status: string
-}
-
-const orders = ref<Order[]>([])
-
-const loadOrders = () => {
-  orders.value = JSON.parse(localStorage.getItem('orders') || '[]')
-  orders.value.reverse()
-}
+const ordersStore = useOrdersStore()
+const { orders } = storeToRefs(ordersStore)
 
 const formatDate = (iso: string) => {
   const d = new Date(iso)
@@ -37,11 +18,8 @@ const formatDate = (iso: string) => {
 
 const clearOrders = () => {
   if (!confirm('هل أنت متأكد من حذف كل الطلبات؟')) return
-  localStorage.removeItem('orders')
-  orders.value = []
+  ordersStore.clearOrders()
 }
-
-onMounted(loadOrders)
 </script>
 
 <template>
@@ -59,7 +37,7 @@ onMounted(loadOrders)
     </p>
 
     <div v-else class="orders-list">
-      <div v-for="order in orders" :key="order.id" class="order-card">
+      <div v-for="order in [...orders].reverse()" :key="order.id" class="order-card">
         <div class="order-header">
           <div>
             <span class="order-date">{{ formatDate(order.date) }}</span>
@@ -166,13 +144,6 @@ onMounted(loadOrders)
   padding-bottom: 14px;
   border-bottom: 1px dashed #e5e7eb;
   margin-bottom: 14px;
-}
-
-.order-id {
-  font-weight: 700;
-  color: #0f172a;
-  font-size: 14px;
-  margin-left: 10px;
 }
 
 .order-date {

@@ -1,102 +1,44 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { useCartStore } from '../stores/cartStore'
+import { useOrdersStore } from '../stores/ordersStore'
 
 const router = useRouter()
+const cartStore = useCartStore()
+const ordersStore = useOrdersStore()
 
-interface CartItem {
-  id: number
-  title: string
-  price: number
-  image: string
-  quantity: number
-}
-
-const cart = ref<CartItem[]>([])
+const { items, total, totalItems, isEmpty } = storeToRefs(cartStore)
 const isLoading = ref(false)
 
-const loadCart = () => {
-  cart.value = JSON.parse(localStorage.getItem('cart') || '[]')
-}
-
-const total = computed(() => {
-  return cart.value.reduce((sum, item) => sum + item.price * item.quantity, 0)
-})
-
-const totalItems = computed(() => {
-  return cart.value.reduce((sum, item) => sum + item.quantity, 0)
-})
-
-const increaseQty = (id: number) => {
-  const item = cart.value.find(i => i.id === id)
-  if (item) item.quantity += 1
-}
-
-const decreaseQty = (id: number) => {
-  const item = cart.value.find(i => i.id === id)
-  if (item && item.quantity > 1) item.quantity -= 1
-}
-
-const removeItem = (id: number) => {
-  cart.value = cart.value.filter(i => i.id !== id)
-}
-
-const clearCart = () => {
-  cart.value = []
-}
-
-watch(
-  cart,
-  (newCart) => {
-    localStorage.setItem('cart', JSON.stringify(newCart))
-    window.dispatchEvent(new Event('cart-updated'))
-  },
-  { deep: true }
-)
-
 const checkout = () => {
-  if (cart.value.length === 0) return
+  if (isEmpty.value) return
 
   isLoading.value = true
 
-  const orders = JSON.parse(localStorage.getItem('orders') || '[]')
-
-  const newOrder = {
-    id: Date.now(),
-    date: new Date().toISOString(),
-    items: [...cart.value],
-    total: total.value,
-    status: 'قيد المعالجة'
-  }
-
-  orders.push(newOrder)
-  localStorage.setItem('orders', JSON.stringify(orders))
-
-  cart.value = []
-  localStorage.removeItem('cart')
-  window.dispatchEvent(new Event('cart-updated'))
+  ordersStore.addOrder(items.value, total.value)
+  cartStore.clearCart()
 
   setTimeout(() => {
     isLoading.value = false
     router.push('/orders')
   }, 500)
 }
-
-onMounted(loadCart)
 </script>
 
 <template>
   <div class="cart-page">
     <h1 class="page-title">سلة التسوق</h1>
 
-    <p v-if="cart.length === 0" class="empty">
+    <p v-if="isEmpty" class="empty">
       السلة فارغة
       <router-link to="/dashboard" class="link">تسوق الآن</router-link>
     </p>
 
     <div v-else class="cart-layout">
       <div class="cart-items">
-        <div v-for="item in cart" :key="item.id" class="cart-item">
+        <div v-for="item in items" :key="item.id" class="cart-item">
           <div class="item-image">
             <img :src="item.image" :alt="item.title" />
           </div>
@@ -107,19 +49,21 @@ onMounted(loadCart)
           </div>
 
           <div class="item-qty">
-            <button class="qty-btn" @click="decreaseQty(item.id)">−</button>
+            <button class="qty-btn" @click="cartStore.decreaseQty(item.id)">−</button>
             <span class="qty-value">{{ item.quantity }}</span>
-            <button class="qty-btn" @click="increaseQty(item.id)">+</button>
+            <button class="qty-btn" @click="cartStore.increaseQty(item.id)">+</button>
           </div>
 
           <div class="item-subtotal">
             ${{ (item.price * item.quantity).toFixed(2) }}
           </div>
 
-          <button class="remove-btn" @click="removeItem(item.id)">✕</button>
+          <button class="remove-btn" @click="cartStore.removeItem(item.id)">✕</button>
         </div>
 
-        <button class="clear-btn" @click="clearCart">حذف كل المنتجات</button>
+        <button class="clear-btn" @click="cartStore.clearCart">
+          حذف كل المنتجات
+        </button>
       </div>
 
       <aside class="summary">

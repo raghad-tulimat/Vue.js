@@ -1,51 +1,42 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { useProductsStore } from '../stores/productsStore'
+import { useCartStore } from '../stores/cartStore'
 import type { Product } from '../types'
-import axios from 'axios'
 
-const API_URL = 'https://dummyjson.com/products'
+defineOptions({ name: 'Dashboard' })
 
 const router = useRouter()
+const productsStore = useProductsStore()
+const cartStore = useCartStore()
 
-const allProducts = ref<Product[]>([])
-const searchTerm = ref('')
-const selectedCategory = ref('all')
-const isLoading = ref(false)
-const errorMsg = ref('')
+const {
+  filteredProducts,
+  categories,
+  isLoading,
+  errorMsg
+} = storeToRefs(productsStore)
 
-const getProducts = async () => {
-  isLoading.value = true
-  errorMsg.value = ''
+const searchTerm = ref(productsStore.searchTerm)
+const selectedCategory = ref(productsStore.selectedCategory)
 
-  try {
-    const response = await axios.get(API_URL)
-    allProducts.value = response.data.products
-  } catch (error) {
-    console.log(error)
-    errorMsg.value = 'تعذر تحميل المنتجات'
-  } finally {
-    isLoading.value = false
-  }
+watch(searchTerm, (val) => {
+  productsStore.setSearchTerm(val)
+})
+
+watch(selectedCategory, (val) => {
+  productsStore.setCategory(val)
+})
+
+const addToCart = (product: Product) => {
+  cartStore.addToCart(product)
 }
 
-const categories = computed(() => {
-  const set = new Set(allProducts.value.map(p => p.category))
-  return ['all', ...set]
+onMounted(() => {
+  productsStore.fetchProducts()
 })
-
-const filteredProducts = computed(() => {
-  const q = searchTerm.value.trim().toLowerCase()
-  const cat = selectedCategory.value
-
-  return allProducts.value.filter(p => {
-    const matchesSearch = p.title.toLowerCase().includes(q)
-    const matchesCategory = cat === 'all' || p.category === cat
-    return matchesSearch && matchesCategory
-  })
-})
-
-onMounted(getProducts)
 </script>
 
 <template>
@@ -95,6 +86,10 @@ onMounted(getProducts)
             <span class="price">${{ product.price.toFixed(2) }}</span>
             <span class="rating">⭐ {{ product.rating }}</span>
           </div>
+
+          <button class="add-cart-btn" @click.stop="addToCart(product)">
+            🛒 أضف للسلة
+          </button>
         </div>
       </div>
     </div>
@@ -233,6 +228,25 @@ onMounted(getProducts)
 .rating {
   font-size: 12px;
   color: #374151;
+}
+
+.add-cart-btn {
+  margin-top: 8px;
+  padding: 9px;
+  border: 1px solid #f59e0b;
+  background: #fff;
+  color: #f59e0b;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.add-cart-btn:hover {
+  background: #f59e0b;
+  color: #fff;
 }
 
 .status {

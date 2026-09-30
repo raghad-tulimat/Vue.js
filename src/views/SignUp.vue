@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import { useAuthStore } from '../stores/authStore'
 
 const name = ref('')
 const email = ref('')
@@ -9,11 +9,11 @@ const password = ref('')
 const confirmPassword = ref('')
 const isLoading = ref(false)
 const errorMsg = ref('')
+
 const router = useRouter()
+const authStore = useAuthStore()
 
-const SIGNUP_URL = 'https://dummyjson.com/users/add'
-
-const signup = async () => {
+const signup = () => {
   errorMsg.value = ''
 
   if (!name.value || !email.value || !password.value || !confirmPassword.value) {
@@ -31,49 +31,16 @@ const signup = async () => {
     return
   }
 
-  const users = JSON.parse(localStorage.getItem('users') || '[]')
-
-  const exists = users.find(u => u.email === email.value)
-  if (exists) {
-    errorMsg.value = 'البريد الإلكتروني مسجل مسبقاً'
-    return
-  }
-
   isLoading.value = true
 
-  try {
-    const response = await axios.post(SIGNUP_URL, {
-      firstName: name.value,
-      email: email.value,
-      password: password.value
-    })
+  const result = authStore.signup(name.value, email.value, password.value)
 
-    console.log('API response:', response.data)
+  isLoading.value = false
 
-    const newUser = {
-      id: response.data.id || Date.now(),
-      name: name.value,
-      email: email.value,
-      password: password.value
-    }
-
-    users.push(newUser)
-    localStorage.setItem('users', JSON.stringify(users))
-
-    localStorage.setItem('token', 'token-' + newUser.id)
-    localStorage.setItem('currentUser', JSON.stringify({
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email
-    }))
-
+  if (result.success) {
     router.push('/dashboard')
-  } catch (error) {
-    console.log('Status:', error.response?.status)
-    console.log('Data:', error.response?.data)
-    errorMsg.value = 'حدث خطأ أثناء إنشاء الحساب'
-  } finally {
-    isLoading.value = false
+  } else {
+    errorMsg.value = result.message || 'حدث خطأ أثناء إنشاء الحساب'
   }
 }
 </script>
@@ -101,7 +68,10 @@ const signup = async () => {
       {{ isLoading ? 'جاري التسجيل...' : 'تسجيل' }}
     </button>
 
-    <p class="footer">لديك حساب بالفعل؟ <a href="#">تسجيل الدخول</a></p>
+    <p class="footer">
+      لديك حساب بالفعل؟
+      <router-link to="/login">تسجيل الدخول</router-link>
+    </p>
   </div>
 </template>
 

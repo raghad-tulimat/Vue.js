@@ -1,41 +1,34 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import { useAuthStore } from '../stores/authStore'
 
-const username = ref('')
+const email = ref('')
 const password = ref('')
-const router = useRouter()
 const isLoading = ref(false)
 const errorMsg = ref('')
 
-const LOGIN_URL = 'https://dummyjson.com/auth/login'
+const router = useRouter()
+const authStore = useAuthStore()
 
-const login = async () => {
+const login = () => {
   errorMsg.value = ''
 
-  if (!username.value || !password.value) {
-    errorMsg.value = 'يرجى إدخال اسم المستخدم وكلمة المرور'
+  if (!email.value || !password.value) {
+    errorMsg.value = 'يرجى إدخال البريد وكلمة المرور'
     return
   }
 
   isLoading.value = true
 
-  try {
-    const response = await axios.post(LOGIN_URL, {
-      username: username.value,
-      password: password.value
-    })
+  const result = authStore.login(email.value, password.value)
 
-    const token = response.data.token || response.data.accessToken
-    localStorage.setItem('token', token)
+  isLoading.value = false
 
+  if (result.success) {
     router.push('/dashboard')
-  } catch (error) {
-    console.log(error)
-    errorMsg.value = 'فشل تسجيل الدخول. يرجى التحقق من بياناتك.'
-  } finally {
-    isLoading.value = false
+  } else {
+    errorMsg.value = result.message || 'فشل تسجيل الدخول'
   }
 }
 </script>
@@ -45,8 +38,8 @@ const login = async () => {
     <h2>تسجيل الدخول</h2>
     <p class="hint">مرحباً بعودتك إلى متجرنا</p>
 
-    <label>اسم المستخدم</label>
-    <input v-model="username" type="text" placeholder="أدخل اسم المستخدم" />
+    <label>البريد الإلكتروني</label>
+    <input v-model="email" type="email" placeholder="أدخل بريدك الإلكتروني" />
 
     <label>كلمة المرور</label>
     <input v-model="password" type="password" placeholder="أدخل كلمة المرور" />
@@ -57,7 +50,10 @@ const login = async () => {
       {{ isLoading ? 'جاري الدخول...' : 'دخول' }}
     </button>
 
-    <p class="footer">ليس لديك حساب؟ <a href="#">إنشاء حساب</a></p>
+    <p class="footer">
+      ليس لديك حساب؟
+      <router-link to="/signup">إنشاء حساب</router-link>
+    </p>
   </div>
 </template>
 

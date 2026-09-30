@@ -1,29 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/authStore'
+import { useCartStore } from '../stores/cartStore'
 
 const router = useRouter()
-const cartCount = ref(0)
+const authStore = useAuthStore()
+const cartStore = useCartStore()
 
-const updateCount = () => {
-  const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-  cartCount.value = cart.reduce((s: number, i: any) => s + i.quantity, 0)
-}
+const { totalItems } = storeToRefs(cartStore)
 
 const logout = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('currentUser')
+  authStore.logout()
   router.push('/login')
 }
-
-onMounted(() => {
-  updateCount()
-  window.addEventListener('cart-updated', updateCount)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('cart-updated', updateCount)
-})
 </script>
 
 <template>
@@ -41,7 +31,7 @@ onUnmounted(() => {
       <div class="nav-left">
         <router-link to="/cart" class="cart-link">
            السلة
-          <span v-if="cartCount" class="badge">{{ cartCount }}</span>
+          <span v-if="totalItems" class="badge">{{ totalItems }}</span>
         </router-link>
 
         <button class="logout-btn" @click="logout">خروج</button>
@@ -49,7 +39,11 @@ onUnmounted(() => {
     </nav>
 
     <main class="content">
-      <RouterView />
+      <RouterView v-slot="{ Component, route }">
+        <KeepAlive :include="['Dashboard']">
+          <component :is="Component" :key="route.path" />
+        </KeepAlive>
+      </RouterView>
     </main>
   </div>
 </template>

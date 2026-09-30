@@ -1,63 +1,49 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
+import { useProductsStore } from '../stores/productsStore'
+import { useCartStore } from '../stores/cartStore'
 import type { Product } from '../types'
 
 const route = useRoute()
 const router = useRouter()
+const productsStore = useProductsStore()
+const cartStore = useCartStore()
 
 const product = ref<Product | null>(null)
 const isLoading = ref(false)
 const errorMsg = ref('')
 const added = ref(false)
 
-const API_URL = 'https://dummyjson.com/products'
+let addedTimer: ReturnType<typeof setTimeout> | null = null
 
 const getProduct = async () => {
   isLoading.value = true
   errorMsg.value = ''
   product.value = null
 
-  try {
-    const response = await axios.get(`${API_URL}/${route.params.id}`)
-    product.value = response.data
-  } catch (error) {
-    console.log(error)
+  const result = await productsStore.fetchProductById(route.params.id as string)
+
+  if (result) {
+    product.value = result
+  } else {
     errorMsg.value = 'تعذر تحميل المنتج'
-  } finally {
-    isLoading.value = false
   }
+
+  isLoading.value = false
 }
 
 const addToCart = () => {
   if (!product.value) return
 
-  const cart = JSON.parse(localStorage.getItem('cart') || '[]')
-
-  const existing = cart.find((item: any) => item.id === product.value!.id)
-
-  if (existing) {
-    existing.quantity += 1
-  } else {
-    cart.push({
-      id: product.value.id,
-      title: product.value.title,
-      price: product.value.price,
-      image: product.value.thumbnail,
-      quantity: 1
-    })
-  }
-
-  localStorage.setItem('cart', JSON.stringify(cart))
+  cartStore.addToCart(product.value)
 
   added.value = true
-  setTimeout(() => {
+  if (addedTimer) clearTimeout(addedTimer)
+  addedTimer = setTimeout(() => {
     added.value = false
   }, 2000)
 }
-
-onMounted(getProduct)
 
 watch(
   () => route.params.id,
@@ -65,6 +51,8 @@ watch(
     if (route.name === 'ProductDetails') getProduct()
   }
 )
+
+onMounted(getProduct)
 </script>
 
 <template>
