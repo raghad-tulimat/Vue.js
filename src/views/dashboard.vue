@@ -1,22 +1,29 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import type { Product } from '../types'
+import axios from 'axios'
 
-const API_URL = 'https://fakestoreapi.com/products'
+const API_URL = 'https://dummyjson.com/products'
+
+const router = useRouter()
 
 const allProducts = ref<Product[]>([])
 const searchTerm = ref('')
 const selectedCategory = ref('all')
 const isLoading = ref(false)
+const errorMsg = ref('')
 
 const getProducts = async () => {
   isLoading.value = true
+  errorMsg.value = ''
+
   try {
-    const response = await fetch(API_URL)
-    if (!response.ok) throw new Error('Failed to fetch products')
-    allProducts.value = await response.json()
+    const response = await axios.get(API_URL)
+    allProducts.value = response.data.products
   } catch (error) {
     console.log(error)
+    errorMsg.value = 'تعذر تحميل المنتجات'
   } finally {
     isLoading.value = false
   }
@@ -43,27 +50,29 @@ onMounted(getProducts)
 
 <template>
   <div class="dashboard">
-    <h1 class="page-title">Products</h1>
+    <h1 class="page-title">المنتجات</h1>
 
     <div class="toolbar">
       <input
         v-model="searchTerm"
         type="text"
         class="search"
-        placeholder="Search products..."
+        placeholder="ابحث عن منتج..."
       />
 
       <select v-model="selectedCategory" class="filter">
         <option v-for="cat in categories" :key="cat" :value="cat">
-          {{ cat === 'all' ? 'All categories' : cat }}
+          {{ cat === 'all' ? 'كل الفئات' : cat }}
         </option>
       </select>
     </div>
 
-    <p v-if="isLoading" class="status">Loading products...</p>
+    <p v-if="isLoading" class="status">جاري التحميل...</p>
+
+    <p v-else-if="errorMsg" class="status error">{{ errorMsg }}</p>
 
     <p v-else-if="filteredProducts.length === 0" class="status">
-      No products match your search.
+      لا توجد منتجات تطابق البحث
     </p>
 
     <div v-else class="products-grid">
@@ -71,9 +80,10 @@ onMounted(getProducts)
         v-for="product in filteredProducts"
         :key="product.id"
         class="card"
+        @click="router.push(`/products/${product.id}`)"
       >
         <div class="image-wrapper">
-          <img :src="product.image" :alt="product.title" />
+          <img :src="product.thumbnail" :alt="product.title" />
         </div>
 
         <div class="content">
@@ -83,10 +93,7 @@ onMounted(getProducts)
 
           <div class="meta">
             <span class="price">${{ product.price.toFixed(2) }}</span>
-            <span class="rating">
-              ⭐ {{ product.rating.rate }}
-              <small>({{ product.rating.count }})</small>
-            </span>
+            <span class="rating">⭐ {{ product.rating }}</span>
           </div>
         </div>
       </div>
@@ -147,7 +154,6 @@ onMounted(getProducts)
   margin: 0 auto;
 }
 
-
 .card {
   width: 260px;
   background: #ffffff;
@@ -156,6 +162,7 @@ onMounted(getProducts)
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -206,8 +213,6 @@ onMounted(getProducts)
   font-weight: 600;
   color: #0f172a;
   line-height: 1.35;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
   overflow: hidden;
   min-height: 38px;
 }
@@ -228,26 +233,6 @@ onMounted(getProducts)
 .rating {
   font-size: 12px;
   color: #374151;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.rating small {
-  color: #9ca3af;
-  font-size: 11px;
-}
-
-.description {
-  margin: 6px 0 0;
-  font-size: 12.5px;
-  color: #4b5563;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  padding-top: 8px;
-  border-top: 1px dashed #e5e7eb;
 }
 
 .status {
@@ -255,5 +240,9 @@ onMounted(getProducts)
   color: #6b7280;
   font-size: 15px;
   margin-top: 40px;
+}
+
+.status.error {
+  color: #dc2626;
 }
 </style>
